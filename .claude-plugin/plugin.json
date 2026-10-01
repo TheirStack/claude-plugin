@@ -1,0 +1,22 @@
+{
+  "name": "theirstack",
+  "version": "1.0.0",
+  "description": "Search job postings, company tech stacks and hiring signals from TheirStack.",
+  "author": {
+    "name": "TheirStack",
+    "email": "support@theirstack.com",
+    "url": "https://theirstack.com"
+  },
+  "homepage": "https://theirstack.com/en/docs/mcp",
+  "repository": "https://github.com/TheirStack/claude-plugin",
+  "license": "MIT",
+  "keywords": [
+    "jobs",
+    "job postings",
+    "technographics",
+    "tech stack",
+    "hiring signals",
+    "lead generation",
+    "sales prospecting"
+  ]
+}
