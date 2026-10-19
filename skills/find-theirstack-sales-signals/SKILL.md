@@ -19,7 +19,7 @@ A **product or service URL** (the offering you want signals for). The input may 
 
 This skill cannot run without the **TheirStack MCP** connected. Before reading any website or running any step:
 
-1. Check whether the TheirStack tools are available in this session — look for `search_companies`, `search_jobs`, `get_catalog_keywords` and the URL builder `generate_app_url` (some clients show them with a prefix, e.g. `theirstack__search_companies`).
+1. Check whether the TheirStack tools are available in this session — look for `search_companies`, `search_jobs`, `find_technologies_and_topics` and the URL builder `generate_app_url` (some clients show them with a prefix, e.g. `theirstack__search_companies`).
 2. **If they are present**, continue to the Steps.
 3. **If they are missing**, STOP and point the user to the setup guide, then wait — do not attempt the rest of the skill:
 
@@ -35,9 +35,9 @@ This skill also grounds its **buying-intent / pain** signals (family C) by reusi
 
 ## Hard rules
 
-- **Research the product from its WEBSITE only.** Read the site with your web browsing or fetch tool. Do **not** use `search_companies`/`search_jobs` to research the product itself.
+- **Don't research the product with `search_companies`/`search_jobs`** — that's what the brand book is for (Step 1).
 - **Trust the connection's own auth.** The TheirStack MCP authenticates itself. Always call the tool directly; if a call fails with an authentication error, tell the user to reconnect TheirStack and stop.
-- **The catalog is for grounding, not prospect research.** Use `get_catalog_keywords` (with `keyword_type: "technology"` for technologies) only to turn human terms ("Pleo", "expense reporting") into real, queryable slugs.
+- **The catalog is for grounding, not prospect research.** Use `find_technologies_and_topics` (with `keyword_type: "technology"` for technologies) only to turn human terms ("Pleo", "expense reporting") into real, queryable slugs.
 - **It spends the user's credits.** Every count and every sample read is billed to their TheirStack workspace. Say so in one line before you start, and report the rough total at the end.
 - **Infer firmographics, don't ask for them.** Derive the firmographic overlay (countries, industries, employee band) from the site (and any context passed in) and apply it to every signal so the counts are addressable market, not whole-database noise. State your inference inside the report's overlay header so the reader can adjust later — but do **not** pause to confirm it.
 - **Must-use vs nice-to-have drives scoring.** For every technology, decide whether the product _can't_ serve a company without it (blocking) or it merely correlates with fit. Must-use signals outrank nice-to-have ones.
@@ -48,24 +48,15 @@ This skill also grounds its **buying-intent / pain** signals (family C) by reusi
 
 **Run the whole thing in one pass — there is no human checkpoint.** Research the product, ground the signals, and write the full report without stopping to ask the user to validate anything.
 
-## Step 1 — Research the product (read several pages, not just one)
+## Step 1 — Get the brand book
 
-1. **Read MULTIPLE pages of the product site, not only the landing.** From the given URL (plus any extra URLs passed in), discover and read the key pages: the home/landing, **product / features**, **solutions / use-cases**, **pricing**, **integrations**, and **customers / case studies**. If you can only fetch the landing, follow the obvious nav links and read at least 3–5 pages. The whole point is to understand the product in depth, not from a single page. Fold any free-text context passed in into the research (it overrides your inference where they disagree).
-
-2. **Synthesize what the product is**, from everything you read:
-   - what it sells (one line) and its **value proposition** (the core promise to its customer, in its own framing),
-   - its **products & services** — the offerings _this company_ sells (used later in the report's "Products & services" section), with a one-line description each,
-   - its **ICP** (who it's for — size, industry, persona), and the **distinct ICP segments/options** it could target,
-   - the **firmographic overlay** to filter every signal by — **inferred, do NOT ask the user**: **target countries** (from the site's language, currencies, named regions/offices, accreditations and case-study locations), **industries to include or exclude** (the verticals it sells to, and any it clearly can't serve), and the **employee-count band** of the ICP. These become the `company_country_code_or`, `industry_id_or` / `industry_id_not` and `min_employee_count` / `max_employee_count` filters applied to every count.
-   - the concrete **problems / jobs-to-be-done** it solves,
-   - its **competitors** — other businesses in the same space (name real examples; if the site doesn't list them, use well-known comparable businesses and mark them illustrative) — and the **integrations** it names, tagging each integration/competitor as **must-use (blocking)** (the product cannot serve a company that doesn't run it — a hard prerequisite, or the only stack it integrates with) or **nice-to-have** (it correlates with fit but isn't required). This split drives lead scoring.
-   - for each problem: the manual **tasks/processes** it removes and the **roles / job titles** of the people who own that problem.
+Call `get_brand_book`. If it's about this offering (same website domain) and filled (products, problems, ICPs), use it. Otherwise run the `research-company-brand-book` skill — in a subagent if you can — with the URL and any context, and use what it returns. Free-text context overrides both.
 
 ## Step 2 — Map to TheirStack signals
 
 3. **Load the signal catalog.** Read the **Sales signals library** — `https://theirstack.com/en/docs/data/sales-signals.md` — and use it as your checklist. Your **signal sources are the three it defines** (A Technographics, B Jobs and hiring, C Buying intent topics) — every signal you output comes from one of them. **Firmographic and temporal are overlays you apply on top of a signal, not sources**: TheirStack is not a firmographics source, so infer the firmographic overlay only to narrow the counts (never pitch industry/size as a signal), and use temporal filters (first-seen, recency, `min_jobs`, surges — a real TheirStack strength) to prioritize by timing. "Trigger plays" are ready-made combinations. This is the single source of truth for the signal list and the exact filter behind each; do not invent signals outside it.
 
-4. **Ground technographics in the TheirStack catalog** — call `get_catalog_keywords` with `q` set to each competitor or integration name and `keyword_type: "technology"` to resolve it to a technology slug. Confirm each slug really exists (and is the right one) by checking it returns a non-zero count in the count-mode search in step 6. Drop unmatched terms (list them).
+4. **Ground technographics in the TheirStack catalog** — competitors and integrations usually arrive with their technology slug from Step 1; for any that doesn't, call `find_technologies_and_topics` with `q` set to its name and `keyword_type: "technology"` to resolve it. Confirm each slug really exists (and is the right one) by checking it returns a non-zero count in the count-mode search in step 6. Drop unmatched terms (list them).
 
    **Ground pains with the `job-description-keyword-research` loop (family C).** Do **not** one-shot pains to catalog keyword slugs. Instead run that skill's procedure (its Steps 2–3) **to saturation**, reusing the product↔pain map from Step 1 here — no re-fetch of the site: for each pain, brainstorm a wide set of real-world phrasings (verb/noun forms, regional spellings, tool-agnostic descriptions, the user's other target languages), size each with a count request (`include_total_results: true`, `limit: 1`, ~1 credit each), **read small samples of real postings** (5–10 jobs, ~1 credit/job) to mine the phrasings companies actually use and exclude false positives via `job_description_pattern_not`, then re-run until a round adds nothing new (~3–4 rounds). The output is a set of grounded `job_description_pattern_or` groups, each tied to one product feature — these ARE your family-C signals. A catalog keyword slug is a coarse fallback only for a pain with no usable job-description phrasing.
 

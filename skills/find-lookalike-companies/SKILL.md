@@ -1,7 +1,7 @@
 ---
 name: find-lookalike-companies
 description: >-
-  Find look-alike companies on TheirStack from won customers. Profiles closed/won customers on TheirStack (what they ran, hired for, and mentioned before they bought), extracts the signals they share — the "customer fingerprint" — and uses it to find new companies currently showing similar signals. Optionally uses each customer's purchase dates and purchase context — the use cases, products, modules, workflows, problems, goals, or solutions they were interested in or bought — so multi-product offerings match against relevant signals. Reads the product's own website only to know which shared signals matter for the pitch. Outputs the fingerprint plus prioritized look-alike paths, each starting with a live company count that links to a ready-made, pre-filtered search. Use when the user says "find lookalike companies", "look-alike companies", "companies like my customers", "empresas parecidas a mis clientes", "find companies similar to these customers", or pastes a product URL plus customer names.
+  Find look-alike companies on TheirStack from won customers. Profiles closed/won customers on TheirStack (what they ran, hired for, and mentioned before they bought), extracts the signals they share — the "customer fingerprint" — and uses it to find new companies currently showing similar signals. Optionally uses each customer's purchase dates and purchase context — the use cases, products, modules, workflows, problems, goals, or solutions they were interested in or bought — so multi-product offerings match against relevant signals. Reads what the product sells from the brand book only to know which shared signals matter for the pitch. Outputs the fingerprint plus prioritized look-alike paths, each starting with a live company count that links to a ready-made, pre-filtered search. Use when the user says "find lookalike companies", "look-alike companies", "companies like my customers", "empresas parecidas a mis clientes", "find companies similar to these customers", or pastes a product URL plus customer names.
 user-invocable: true
 argument-hint: <product-url> <won-customer companies> [purchase dates] [purchase context]
 ---
@@ -24,7 +24,7 @@ If the product URL or customer list is missing, ask for it and stop. If dates or
 
 This skill cannot run without the **TheirStack MCP** connected. Before reading any website or profiling any customer:
 
-1. Check whether the TheirStack tools are available in this session — look for `search_jobs`, `search_companies`, `get_company_technographics`, `get_catalog_keywords`, `get_keyword_categories`, `get_keyword_subcategories` and `generate_app_url` (some clients show them with a prefix, e.g. `theirstack__search_companies`).
+1. Check whether the TheirStack tools are available in this session — look for `search_jobs`, `search_companies`, `get_company_technographics`, `find_technologies_and_topics`, `list_keyword_categories`, `list_keyword_subcategories` and `generate_app_url` (some clients show them with a prefix, e.g. `theirstack__search_companies`).
 2. **If they are present**, continue to the Steps.
 3. **If they are missing**, STOP and point the user to the setup guide, then wait — do not attempt the rest of the skill:
 
@@ -32,7 +32,7 @@ This skill cannot run without the **TheirStack MCP** connected. Before reading a
 
 ## Hard rules
 
-- **The customers are the ground truth, not the product website.** The fingerprint comes from what the won customers actually run/hire/mention in TheirStack. The product website is read **only** to know which of the shared signals matter for the pitch (so you lead with the relevant ones).
+- **The customers are the ground truth, not the product website.** The fingerprint comes from what the won customers actually run/hire/mention in TheirStack. The brand book is used **only** to know which of the shared signals matter for the pitch (so you lead with the relevant ones).
 - **Purchase context matters.** If the vendor sells multiple products or modules, build the fingerprint for the specific use cases, products, modules, workflows, problems, goals, or solutions the customer was interested in or bought. Do not treat signals for unrelated areas as positive evidence. Example: a CRM buyer does not automatically validate email-marketing signals; an error-monitoring buyer does not automatically validate logging or observability-platform signals.
 - **Timing matters.** When purchase dates are available, profile job postings and buying-intent keywords in the window immediately before each relevant purchase. Use a consistent pre-close window by default (e.g. the 180 days before the purchase date), widen it only when volume is too low, and state the window used. If a customer has multiple purchase dates for different use cases, products, modules, workflows, or solutions, profile each relevant window separately. For customers without dates, use the best recent window and mark those signals as weaker.
 - **A signal counts only if it's shared.** A signal is only part of the fingerprint if it appears across **2+ reference customers** (ideally a majority). One customer using a tool is noise; three of five is a pattern. State the support (e.g. "4/5") for every signal you keep.
@@ -44,7 +44,7 @@ The skill runs in **three parts with a human checkpoint before look-alike search
 
 ## Part 1 — Build the customer fingerprint
 
-1. **Read the product briefly (website only).** Read the product's landing + product/features page (1-3 pages is enough here — you are not deriving signals from it, just learning what it sells and to whom, so you can later rank the shared signals by relevance). Capture: what it sells (one line), its category, the distinct use cases/products/modules/workflows it supports, and the roles/pains each serves.
+1. **Get the brand book** — only to know what the product sells and to whom, so you can rank the shared signals later. Call `get_brand_book`. If it's about this product (same website domain) and filled (products, problems), use it. Otherwise run the `research-company-brand-book` skill — in a subagent if you can, while you profile the customers — and use what it returns.
 
 2. **Normalize the seed set.** Create a seed table with one row per customer purchase context: company/domain, matched TheirStack company ID, purchase date if provided, and the use cases/products/modules/workflows/problems/goals/solutions they were interested in or bought. If one customer bought multiple things on different dates, keep multiple rows. If the seed list mixes materially different buying reasons or product areas, segment it and run one fingerprint per segment; do not average incompatible buyers into one pattern. If the user volunteered product areas or workflows that were explicitly unrelated to the purchase, keep them as exclusions, but do not make exclusions a required input.
 
@@ -62,7 +62,7 @@ The skill runs in **three parts with a human checkpoint before look-alike search
    - shared **hiring roles** / scaling departments,
    - shared **pain/category keywords**,
    - shared **firmographics** (size band, industry, geo, funding).
-     Record the **support count** for each (e.g. "Shopify — 12/18", "hiring 'data engineer' — 9/18"). **Ground each** to a real `technology_slug` / `keyword_slug` via `get_catalog_keywords`, `get_keyword_categories` / `get_keyword_subcategories`. Drop and list anything with no catalog match.
+     Record the **support count** for each (e.g. "Shopify — 12/18", "hiring 'data engineer' — 9/18"). **Ground each** to a real `technology_slug` / `keyword_slug` via `find_technologies_and_topics`, `list_keyword_categories` / `list_keyword_subcategories`. Drop and list anything with no catalog match.
 
 ## Part 2 — Confirm the fingerprint with the user (STOP and ask — do not continue alone)
 

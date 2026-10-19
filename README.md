@@ -19,11 +19,12 @@ Some examples:
 
 ## Skills
 
-The plugin comes with three research workflows:
+The plugin comes with four research workflows:
 
 - `find-theirstack-sales-signals`: give it your product's website and it finds the hiring and tech stack signals your sales team should prospect on.
 - `find-lookalike-companies`: give it a few customers you have won and it finds companies that look like them now.
 - `job-description-keyword-research`: give it your product's website and it finds the phrases companies use in job posts when they have the problem you solve.
+- `research-company-brand-book`: give it your company's website and it fills your workspace brand book: products, problems, ideal customer profiles as company searches, customers and competitors. The other skills start from it.
 
 ## Setup
 
