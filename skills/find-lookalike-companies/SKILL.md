@@ -1,7 +1,7 @@
 ---
 name: find-lookalike-companies
 description: >-
-  Find look-alike companies on TheirStack from won customers. Profiles closed/won customers on TheirStack (what they ran, hired for, and mentioned before they bought), extracts the signals they share — the "customer fingerprint" — and uses it to find new companies currently showing similar signals. Optionally uses each customer's purchase dates and purchase context — the use cases, products, modules, workflows, problems, goals, or solutions they were interested in or bought — so multi-product offerings match against relevant signals. Reads what the product sells from the brand book only to know which shared signals matter for the pitch. Outputs the fingerprint plus prioritized look-alike paths, each starting with a live company count that links to a ready-made, pre-filtered search. Use when the user says "find lookalike companies", "look-alike companies", "companies like my customers", "empresas parecidas a mis clientes", "find companies similar to these customers", or pastes a product URL plus customer names.
+  Find look-alike companies on TheirStack from won customers. Profiles the signals customers showed before buying, extracts their shared customer fingerprint, and turns it into prioritized searches with live counts and ready-made links. Uses purchase dates and context when available so multi-product offerings match on relevant signals. Use when someone asks for look-alikes or companies similar to their customers, or provides a product URL and customer names.
 user-invocable: true
 argument-hint: <product-url> <won-customer companies> [purchase dates] [purchase context]
 ---
@@ -44,7 +44,7 @@ The skill runs in **three parts with a human checkpoint before look-alike search
 
 ## Part 1 — Build the customer fingerprint
 
-1. **Get the brand book** — only to know what the product sells and to whom, so you can rank the shared signals later. Call `get_brand_book`. If it's about this product (same website domain) and filled (products, problems), use it. Otherwise run the `research-company-brand-book` skill — in a subagent if you can, while you profile the customers — and use what it returns.
+1. **Get the brand book** — only to know what the product sells and to whom, so you can rank the shared signals later. Call `get_brand_book`. If it's about this product (same website domain) and filled (products, problems), use it. Otherwise run the `research-company-brand-book` skill — in a subagent if you can, while you profile the customers — and use what it returns (when it saved the brand book, read it with `get_brand_book`).
 
 2. **Normalize the seed set.** Create a seed table with one row per customer purchase context: company/domain, matched TheirStack company ID, purchase date if provided, and the use cases/products/modules/workflows/problems/goals/solutions they were interested in or bought. If one customer bought multiple things on different dates, keep multiple rows. If the seed list mixes materially different buying reasons or product areas, segment it and run one fingerprint per segment; do not average incompatible buyers into one pattern. If the user volunteered product areas or workflows that were explicitly unrelated to the purchase, keep them as exclusions, but do not make exclusions a required input.
 
