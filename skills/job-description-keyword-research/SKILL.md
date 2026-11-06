@@ -21,7 +21,7 @@ A **product or service URL** (the offering you want keywords for). May also incl
 
 This skill cannot run without the **TheirStack MCP** connected. Before reading any website or running any step:
 
-1. Check whether the TheirStack tools are available in this session — look for `search_jobs` and the URL builder `generate_app_url` (some clients show them with a prefix, e.g. `theirstack__search_jobs`). This skill works on **free-text job-description patterns**, not catalog slugs, so it needs no catalog tool.
+1. Check whether the TheirStack tools are available in this session — look for `search_jobs` and the URL builder `generate_app_url` (some clients show them with a prefix, e.g. `theirstack__search_jobs`). This skill works on **whole-word job-description phrases**, not catalog slugs, so it needs no catalog tool.
 2. **If they are present**, continue to the Steps.
 3. **If they are missing**, STOP and point the user to the setup guide, then wait — do not attempt the rest of the skill:
 
@@ -60,22 +60,22 @@ This skill cannot run without the **TheirStack MCP** connected. Before reading a
 
 3. **For each pain, brainstorm a WIDE set of phrasings** — the words a hiring manager would actually write. Go broad on purpose: verb and noun forms ("reconcile" / "reconciliation"), tool-agnostic descriptions of the manual process, common abbreviations, regional spellings, and **the same pain in every language spoken in the countries the user is targeting jobs in** (one language pass per target country — pain phrasing and role titles don't translate 1:1, so do a real per-language pass, not a literal translation). If the user targets jobs in Germany, France and Spain, cover German, French and Spanish; if only the US, English is enough. This first list is a hypothesis; Step 3 corrects it.
 
-4. **Turn each group into a search filter.** Each group is an **OR set of regex patterns** passed to `job_description_pattern_or`. Conventions:
-   - Make patterns **case-insensitive** with a leading `(?i)`, and **bound whole words/phrases** with `\b` so "expense" doesn't match "inexpensive". Example group: `["(?i)\\bexpense report\\b", "(?i)\\bchase (receipts|invoices)\\b", "(?i)\\breimbursement\\b"]`.
-   - To require **two concepts together** (e.g. a pain AND a context, or a role AND a pain), use `job_description_pattern_and` with one alternation pattern per concept — every pattern in the list must match.
-   - To **cut false positives**, add `job_description_pattern_not` with the noisy phrasings you find in Step 3.
-   - For simple whole-word matches you don't need regex: `job_description_contains_or` matches complete words case-insensitively with built-in word boundaries.
+4. **Turn each group into a search filter.** Pass each group as literal words or phrases in `job_description_contains_or`. A job matches any entry; words within a multiword entry must be adjacent and in order. Example: `["expense report", "chase receipts", "chase invoices", "reimbursement"]`.
+   - List spelling variants, abbreviations and verb forms as separate entries. Matching uses whole words; an entry like `expense` does not match `inexpensive`. Normalized phrase search folds case and accents and treats punctuation as word boundaries, so validate the actual returned descriptions.
+   - To cut false positives, use `job_description_contains_not` with literal words or phrases found in Step 3. Any matching exclusion removes the job.
+   - Combine description phrases with `job_title_or`, technology, geography or company filters for context. There is no `job_description_contains_and`; one OR list cannot require two separate concepts. Use a more specific adjacent phrase or split the searches and compare the results.
+   - Use the contains filters for new searches. Description regex filters are deprecated and retained for existing searches. Do not put regex flags, boundaries, alternations or proximity expressions in a contains entry; they do not express those rules.
 
 ## Step 3 — Ground & iterate against real job postings (the core loop)
 
 Repeat this loop per keyword group until it **saturates** (a round adds no genuinely new phrasing) or you hit ~3–4 rounds:
 
-5. **Size it (1 credit).** Call `search_jobs` as a count — `include_total_results: true`, `limit: 1`, `posted_at_max_age_days: 90`, plus the group's `job_description_pattern_or` (and any `_and` / `_not`). Read `metadata.total_results` (jobs) and `metadata.total_companies`.
+5. **Size it (1 credit).** Call `search_jobs` as a count — `include_total_results: true`, `limit: 1`, `posted_at_max_age_days: 90`, plus the group's `job_description_contains_or` and any `job_description_contains_not`. Read `metadata.total_results` (jobs) and `metadata.total_companies`.
 
 6. **Read real postings (costs credits).** Pull a small sample — `limit: 5`–`10` — for the same filter, and read each `description`. This is the heart of the skill: see how companies actually phrase the pain.
 
    - **Mine new phrasings** the postings use that aren't in your group yet → add them.
-   - **Spot false positives** — jobs that matched but don't really signal the pain → add the offending phrasing to `job_description_pattern_not`, or tighten the pattern.
+   - **Spot false positives** — jobs that matched but don't really signal the pain → add a specific literal phrase to `job_description_contains_not`, or refine the positive phrases.
    - **Pull sample jobs from different sources/geographies** (don't over-fit to one job board or one country) so the phrasings generalize.
 
 7. **Re-run** the count with the refined group and note the delta. Stop when new rounds stop adding real phrasings.
@@ -105,7 +105,7 @@ Write the output **in the user's language** (match the conversation). Profession
 Then, **one short subsection per keyword group** (ordered by relevance to the product, most on-the-nose pain first), each containing:
 
 - A one-line **explanation** of the buying signal — what hiring need the group detects and why it maps to this feature.
-- The **final keyword list** (the converged patterns, shown readably — you don't need to print the raw regex escaping, but keep it copy-pasteable).
+- The **final keyword list** (the converged literal words and phrases, kept copy-pasteable).
 - The **job count** over the last 90 days and the **company count**, with the count linked to the deep-link job-search URL.
 - One line of **iteration notes** when relevant — phrasings added from real postings, false positives excluded, or roles used to narrow (e.g. "added 'three-way match' and 'AP aging' from sampled postings; excluded 'expense' on its own — too noisy").
 
@@ -116,5 +116,5 @@ End with: a one-line note that each link opens the live, pre-filtered search in 
 - **Buyer's words win.** The single most common failure is filling a group with the vendor's marketing vocabulary. Always reset to: _what would a hiring manager type into a job description when they have this pain?_
 - **Iterate, don't guess.** The value of this skill over a one-shot prompt is Step 3 — reading real postings and refining. Don't skip it to save credits; just keep samples small.
 - **Counts vs reads.** A count (`include_total_results`, `limit: 1`) costs 1 credit per group that has matches; reading real descriptions costs 1 credit per job returned. Never pull large batches just to size.
-- **Combine for precision.** A generic pain phrase (e.g. "reporting") gets sharper when ANDed with a role (`job_title_or`) or a second concept (`job_description_pattern_and`). Single-phrase groups are broader and noisier.
+- **Combine for precision.** A generic pain phrase (e.g. "reporting") gets sharper when ANDed with a role (`job_title_or`) or a technology filter. Use an adjacent phrase when the description itself must express the relationship; unrelated entries in `job_description_contains_or` are alternatives, not an AND.
 - **Re-run per market.** Pain phrasing and role titles don't translate 1:1 — do a real per-language pass for every language spoken in the countries the user is targeting jobs in (as many languages as target countries), not a literal translation.
